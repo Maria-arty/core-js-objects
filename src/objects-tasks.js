@@ -285,8 +285,16 @@ function sortCitiesArray(arr) {
  *    "Poland" => ["Lodz"]
  *   }
  */
-function group(/* array, keySelector, valueSelector */) {
-  throw new Error('Not implemented');
+function group(array, keySelector, valueSelector) {
+  return array.reduce((map, item) => {
+    const key = keySelector(item);
+    const value = valueSelector(item);
+    if (!map.has(key)) {
+      map.set(key, []);
+    }
+    map.get(key).push(value);
+    return map;
+  }, new Map());
 }
 
 /**
@@ -344,32 +352,84 @@ function group(/* array, keySelector, valueSelector */) {
  */
 
 const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
+  selector: '',
+  order: [],
+
+  copy(newSelector, newOrder) {
+    const obj = Object.create(cssSelectorBuilder);
+    obj.selector = newSelector;
+    obj.order = [...this.order, newOrder];
+    return obj;
   },
 
-  id(/* value */) {
-    throw new Error('Not implemented');
+  stringify() {
+    return this.selector;
   },
 
-  class(/* value */) {
-    throw new Error('Not implemented');
+  checkOrder(type) {
+    const orderMap = {
+      element: 1,
+      id: 2,
+      class: 3,
+      attr: 4,
+      pseudoClass: 5,
+      pseudoElement: 6,
+    };
+
+    if (
+      (type === 'element' || type === 'id' || type === 'pseudoElement') &&
+      this.order.includes(type)
+    ) {
+      throw new Error(
+        'Element, id and pseudo-element should not occur more then one time inside the selector'
+      );
+    }
+
+    if (
+      this.order.length &&
+      orderMap[type] < orderMap[this.order[this.order.length - 1]]
+    ) {
+      throw new Error(
+        'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
   },
 
-  attr(/* value */) {
-    throw new Error('Not implemented');
+  element(value) {
+    this.checkOrder('element');
+    return this.copy(`${this.selector}${value}`, 'element');
   },
 
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
+  id(value) {
+    this.checkOrder('id');
+    return this.copy(`${this.selector}#${value}`, 'id');
   },
 
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
+  class(value) {
+    this.checkOrder('class');
+    return this.copy(`${this.selector}.${value}`, 'class');
   },
 
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
+  attr(value) {
+    this.checkOrder('attr');
+    return this.copy(`${this.selector}[${value}]`, 'attr');
+  },
+
+  pseudoClass(value) {
+    this.checkOrder('pseudoClass');
+    return this.copy(`${this.selector}:${value}`, 'pseudoClass');
+  },
+
+  pseudoElement(value) {
+    this.checkOrder('pseudoElement');
+    return this.copy(`${this.selector}::${value}`, 'pseudoElement');
+  },
+
+  combine(selector1, combinator, selector2) {
+    return this.copy(
+      `${selector1.stringify()} ${combinator} ${selector2.stringify()}`,
+      'combine'
+    );
   },
 };
 
